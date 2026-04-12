@@ -18,6 +18,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Initialise config and/or register the current repo with sensible defaults
+    Init {
+        /// Path to register (default: current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
     /// Run the daemon in the foreground
     Daemon,
     /// Register a repo to be mirrored
@@ -60,6 +66,7 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
     match cli.cmd {
+        Cmd::Init { path } => init(path),
         Cmd::Daemon => daemon::run(),
         Cmd::Add {
             path,
@@ -170,6 +177,100 @@ fn status() -> Result<()> {
             if r.paused { " [paused]" } else { "" }
         );
     }
+    Ok(())
+}
+
+fn init(path: PathBuf) -> Result<()> {
+    let config_path = Config::path();
+    let config_existed = config_path.exists();
+
+    // Load (or create) config
+    let mut cfg = Config::load()?;
+
+    // Resolve path — allow "." to mean current directory
+    let raw = if path.as_os_str() == "." {
+        std::env::current_dir().context("reading current directory")?
+    } else {
+        path.clone()
+    };
+
+    // If the target path is not a git repo (or doesn't exist), this is a
+    // config-only init: write the file (if missing) and tell the user to cd
+    // into a repo and run `gitfoam init` there.
+    let canon = fs::canonicalize(&raw).ok();
+    let is_repo = canon.as_deref().map(git::is_git_repo).unwrap_or(false);
+
+    if !is_repo {
+        if !config_existed {
+            cfg.save()?;
+            println!("created {}", config_path.display());
+        } else {
+            println!("config already exists at {}", config_path.display());
+        }
+        println!();
+        println!("next step:");
+        println!("  cd into any git repo and run `gitfoam init` to register it");
+        println!("  repeat in as many repos as you want, then edit {} to tune",
+            config_path.display());
+        return Ok(());
+    }
+
+    let canon = canon.unwrap();
+
+    // Derive sensible defaults
+    let source_branch = git::current_branch(&canon).unwrap_or_else(|_| "HEAD".into());
+    let hostname = std::env::var("HOSTNAME")
+        .ok()
+        .or_else(|| {
+            std::process::Command::new("hostname")
+                .output()
+                .ok()
+                .and_then(|o| {
+                    let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                    if s.is_empty() { None } else { Some(s) }
+                })
+        })
+        .unwrap_or_else(|| "host".into());
+    let target_branch = format!("gitfoam/{}/{}", hostname, source_branch);
+
+    let already = cfg.find_index(&canon).is_some();
+    if let Some(idx) = cfg.find_index(&canon) {
+        // Only fill in missing fields — never clobber operator tuning
+        if cfg.repos[idx].target_branch.is_empty() {
+            cfg.repos[idx].target_branch = target_branch.clone();
+        }
+        if cfg.repos[idx].source_branch.is_empty() {
+            cfg.repos[idx].source_branch = source_branch.clone();
+        }
+    } else {
+        cfg.repos.push(RepoEntry {
+            path: canon.clone(),
+            source_branch: source_branch.clone(),
+            target_branch: target_branch.clone(),
+            remote: "origin".into(),
+            debounce_ms: None,
+            commit_message: None,
+            paused: false,
+        });
+    }
+    cfg.save()?;
+
+    if !config_existed {
+        println!("created {}", config_path.display());
+    }
+    if already {
+        println!("already registered: {}", canon.display());
+    } else {
+        println!("registered: {}", canon.display());
+        println!("  source: {}", source_branch);
+        println!("  target: {}", target_branch);
+        println!("  remote: origin");
+    }
+    println!();
+    println!("run more:");
+    println!("  cd ~/other-repo && gitfoam init   # register another");
+    println!("  $EDITOR {}", config_path.display());
+    println!("  gitfoam daemon                    # start mirroring");
     Ok(())
 }
 

@@ -14,11 +14,13 @@ Drops a static binary at `~/.local/bin/gitfoam`. Make sure that's on your `PATH`
 
 ```sh
 cd /path/to/your/repo
-gitfoam add . --target gitfoam/$(hostname)/$(git branch --show-current)
-gitfoam daemon
+gitfoam init          # registers this repo with sensible defaults
+gitfoam daemon        # start mirroring
 ```
 
-That's it. Edit files, watch them appear on the mirror branch in GitHub within ~500ms. Merge into your real branch whenever you want via PR.
+`gitfoam init` auto-derives the target branch as `gitfoam/<hostname>/<current-branch>`. Run it inside as many repos as you want — each one gets added to `~/.gitfoam.json`. Tune anything afterwards by editing the file directly.
+
+Edit files, watch them appear on the mirror branch in GitHub within ~500ms. Merge into your real branch whenever you want via PR.
 
 ## How it works
 
@@ -31,7 +33,8 @@ That's it. Edit files, watch them appear on the mirror branch in GitHub within ~
 ## Commands
 
 ```sh
-gitfoam add <path> --target <branch>   # register a repo
+gitfoam init [path]                    # register a repo with sensible defaults
+gitfoam add <path> --target <branch>   # register a repo (explicit)
 gitfoam list                           # show configured repos
 gitfoam status                         # show dirty/clean + paused state
 gitfoam pause <path>                   # stop mirroring
