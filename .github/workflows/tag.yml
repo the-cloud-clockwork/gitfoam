@@ -1,0 +1,35 @@
+name: tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "version to tag (e.g. 0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: create and push tag
+        run: |
+          set -e
+          VERSION="${{ inputs.version }}"
+          TAG="v${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "tag ${TAG} already exists"
+            exit 1
+          fi
+          git tag -a "${TAG}" -m "release ${TAG}"
+          git push origin "${TAG}"
+          echo "pushed ${TAG}"
