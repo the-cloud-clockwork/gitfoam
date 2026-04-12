@@ -1,22 +1,6 @@
 # gitfoam
 
-Dumb daemon that auto-mirrors your local git working tree to a disposable remote branch.
-
-One commit. Rolling SHA. Force-pushed every tick. Built for running AI agents that mutate files constantly — so you never lose work and never babysit `git add / commit / push`.
-
-## What it does
-
-- Polls each registered repo every N ms (default 500).
-- When the working tree is dirty, it builds an **orphan commit** of the current tree and pushes it to `target_branch` on the remote.
-- Next tick: new orphan commit, same branch, force-push. The target branch always has **exactly one commit** on it — the live mirror.
-- The source branch is never touched. Your index and working tree are never touched.
-- Secrets are scanned before commit (regex + Shannon entropy). Hits are excluded from the commit and logged to `~/.gitfoam/blocked.log`.
-
-## What it does NOT do
-
-- **No auth handling.** `git push` must already work on your box (SSH agent, gh credential helper, PAT, whatever).
-- No merging. No pulling. No rebasing. The target branch is disposable — review on GitHub, merge to your working branch manually when ready, delete the mirror whenever you want.
-- No inotify fancy business — it's a dumb polling loop.
+Auto-mirror your working tree to a throwaway branch on GitHub. One rolling commit, force-pushed every half second. Never lose work from an AI agent again.
 
 ## Install
 
@@ -24,90 +8,62 @@ One commit. Rolling SHA. Force-pushed every tick. Built for running AI agents th
 curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clock-Work/gitfoam/main/install.sh | sh
 ```
 
-Binary lands at `~/.local/bin/gitfoam`. Add that to your PATH if it isn't already.
+Drops a static binary at `~/.local/bin/gitfoam`. Make sure that's on your `PATH`.
 
-## Usage
+## Quick start
 
 ```sh
-# Register a repo
-gitfoam add /path/to/repo --target gitfoam/$(hostname)/dev
-
-# Run the daemon (foreground — use systemd/tmux/nohup to keep it alive)
+cd /path/to/your/repo
+gitfoam add . --target gitfoam/$(hostname)/$(git branch --show-current)
 gitfoam daemon
-
-# Other commands
-gitfoam list
-gitfoam status
-gitfoam pause   /path/to/repo
-gitfoam resume  /path/to/repo
-gitfoam remove  /path/to/repo
 ```
 
-## Config
+That's it. Edit files, watch them appear on the mirror branch in GitHub within ~500ms. Merge into your real branch whenever you want via PR.
 
-Path: `~/.gitfoam.json` (override with `GITFOAM_CONFIG`)
+## How it works
 
-```json
-{
-  "daemon": {
-    "default_debounce_ms": 500,
-    "default_commit_message": "gitfoam: live mirror"
-  },
-  "repos": [
-    {
-      "path": "/home/you/dev/myrepo",
-      "source_branch": "dev",
-      "target_branch": "gitfoam/laptop/dev",
-      "remote": "origin",
-      "debounce_ms": 500,
-      "commit_message": "gitfoam: myrepo live mirror"
-    }
-  ]
-}
+- Watches the repo every 500ms.
+- When dirty → builds an orphan commit of the current tree → force-pushes to your target branch.
+- Target branch always has **exactly one commit**. No history, no conflicts, no merges.
+- Your working branch, your index, and your `git status` are never touched.
+- Secrets (AWS keys, GitHub PATs, JWTs, private keys, high-entropy strings) are excluded from the commit and logged to `~/.gitfoam/blocked.log`.
+
+## Commands
+
+```sh
+gitfoam add <path> --target <branch>   # register a repo
+gitfoam list                           # show configured repos
+gitfoam status                         # show dirty/clean + paused state
+gitfoam pause <path>                   # stop mirroring
+gitfoam resume <path>                  # resume mirroring
+gitfoam remove <path>                  # unregister
+gitfoam daemon                         # run in foreground
 ```
 
-Edit the file directly or use `gitfoam add` — both work. Restart the daemon to pick up changes.
+Config lives at `~/.gitfoam.json`. Edit it directly if you prefer — takes effect on daemon restart.
 
-## Naming the target branch
-
-Recommended: `gitfoam/<hostname>/<source-branch>` so multiple machines don't collide when mirroring the same repo.
-
-## Secrets
-
-Blocked patterns (regex):
-
-- AWS access keys (`AKIA...`, `ASIA...`)
-- GitHub tokens (`ghp_`, `ghs_`, `gho_`, `ghu_`, `github_pat_`)
-- Slack tokens (`xox[baprs]-...`)
-- Private keys (`-----BEGIN ... PRIVATE KEY-----`)
-- JWTs (`eyJ...`)
-- Generic `api_key=`, `password=`, `secret=`, `token=` with 16+ char values
-- OpenAI / Anthropic / Google API keys (`sk-...`, `sk-ant-...`, `AIza...`)
-
-Plus Shannon entropy: any token ≥20 chars with entropy ≥4.5 bits/char is treated as suspicious.
-
-A matching file is **excluded from the commit** for the session, logged to `~/.gitfoam/blocked.log`, and continues to be excluded until the daemon is restarted. The file in your working tree is untouched.
-
-This is not a security boundary — it's a dumb net to catch the obvious stuff. Don't rely on it for compliance.
-
-## systemd user unit
+## Run in the background
 
 ```sh
 mkdir -p ~/.config/systemd/user
 curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clock-Work/gitfoam/main/systemd/gitfoam.service \
     > ~/.config/systemd/user/gitfoam.service
-systemctl --user daemon-reload
 systemctl --user enable --now gitfoam
 journalctl --user -u gitfoam -f
 ```
 
+Or just `nohup gitfoam daemon &` — your call.
+
+## Not included
+
+- **Auth.** gitfoam shells out to `git push`. Your SSH agent / credential helper / PAT must already work.
+- **Merging, pulling, rebasing.** The target branch is disposable. Review on GitHub, merge manually, delete whenever.
+
 ## Uninstall
 
 ```sh
-rm ~/.local/bin/gitfoam
-rm -rf ~/.gitfoam ~/.gitfoam.json
+rm ~/.local/bin/gitfoam ~/.gitfoam.json
+rm -rf ~/.gitfoam
 ```
 
-## License
-
-MIT
+MIT. Source: [github.com/The-Cloud-Clock-Work/gitfoam](https://github.com/The-Cloud-Clock-Work/gitfoam)
