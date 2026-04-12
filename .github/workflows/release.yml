@@ -30,10 +30,6 @@ jobs:
             os: ubuntu-latest
             rust_target: aarch64-unknown-linux-musl
             cross: true
-          - target: darwin-x86_64
-            os: macos-13
-            rust_target: x86_64-apple-darwin
-            cross: false
           - target: darwin-aarch64
             os: macos-latest
             rust_target: aarch64-apple-darwin
