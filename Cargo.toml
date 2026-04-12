@@ -1,0 +1,25 @@
+[package]
+name = "gitfoam"
+version = "0.1.0"
+edition = "2024"
+
+description = "Dumb daemon that auto-mirrors local git state to a disposable remote branch via rolling amend+force-push"
+license = "MIT"
+repository = "https://github.com/The-Cloud-Clock-Work/gitfoam"
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+regex = "1"
+anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

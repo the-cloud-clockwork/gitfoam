@@ -1,0 +1,90 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            os: ubuntu-latest
+            rust_target: x86_64-unknown-linux-musl
+            cross: true
+          - target: linux-aarch64
+            os: ubuntu-latest
+            rust_target: aarch64-unknown-linux-musl
+            cross: true
+          - target: darwin-x86_64
+            os: macos-13
+            rust_target: x86_64-apple-darwin
+            cross: false
+          - target: darwin-aarch64
+            os: macos-latest
+            rust_target: aarch64-apple-darwin
+            cross: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: install musl tools
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          if [ "${{ matrix.rust_target }}" = "aarch64-unknown-linux-musl" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+            mkdir -p .cargo
+            cat >> .cargo/config.toml <<'EOF'
+          [target.aarch64-unknown-linux-musl]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
+          fi
+
+      - name: build
+        run: cargo build --release --target ${{ matrix.rust_target }}
+
+      - name: rename binary
+        run: |
+          cp target/${{ matrix.rust_target }}/release/gitfoam gitfoam-${{ matrix.target }}
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitfoam-${{ matrix.target }}
+          path: gitfoam-${{ matrix.target }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - name: download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: flatten
+        run: |
+          mkdir -p out
+          find dist -type f -name 'gitfoam-*' -exec cp {} out/ \;
+          ls -la out
+      - name: publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
