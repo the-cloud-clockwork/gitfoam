@@ -5,7 +5,7 @@ edition = "2024"
 
 description = "Dumb daemon that auto-mirrors local git state to a disposable remote branch via rolling amend+force-push"
 license = "MIT"
-repository = "https://github.com/The-Cloud-Clock-Work/gitfoam"
+repository = "https://github.com/The-Cloud-Clockwork/gitfoam"
 readme = "README.md"
 
 [dependencies]

@@ -5,7 +5,7 @@ Auto-mirror your working tree to a throwaway branch on GitHub. One rolling commi
 ## Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clock-Work/gitfoam/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clockwork/gitfoam/main/install.sh | sh
 ```
 
 Drops a static binary at `~/.local/bin/gitfoam`. Make sure that's on your `PATH`.
@@ -49,7 +49,7 @@ Config lives at `~/.gitfoam.json`. Edit it directly if you prefer — takes effe
 
 ```sh
 mkdir -p ~/.config/systemd/user
-curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clock-Work/gitfoam/main/systemd/gitfoam.service \
+curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clockwork/gitfoam/main/systemd/gitfoam.service \
     > ~/.config/systemd/user/gitfoam.service
 systemctl --user enable --now gitfoam
 journalctl --user -u gitfoam -f
@@ -69,4 +69,4 @@ rm ~/.local/bin/gitfoam ~/.gitfoam.json
 rm -rf ~/.gitfoam
 ```
 
-MIT. Source: [github.com/The-Cloud-Clock-Work/gitfoam](https://github.com/The-Cloud-Clock-Work/gitfoam)
+MIT. Source: [github.com/The-Cloud-Clockwork/gitfoam](https://github.com/The-Cloud-Clockwork/gitfoam)

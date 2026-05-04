@@ -5,9 +5,9 @@ set -euo pipefail
 # drops it at ~/.local/bin/gitfoam.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clock-Work/gitfoam/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/The-Cloud-Clockwork/gitfoam/main/install.sh | sh
 
-REPO="The-Cloud-Clock-Work/gitfoam"
+REPO="The-Cloud-Clockwork/gitfoam"
 BIN_NAME="gitfoam"
 INSTALL_DIR="${GITFOAM_INSTALL_DIR:-$HOME/.local/bin}"
 
